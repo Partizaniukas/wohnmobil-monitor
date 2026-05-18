@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
+  <title>Wohnmobil Monitor</title>
+
   <link rel="apple-touch-icon" sizes="180x180" href="./icon.png">
   <link rel="icon" type="image/png" href="./icon.png">
-  <meta charset="UTF-8">
-  <title>Wohnmobil Batterie</title>
 
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
@@ -14,26 +15,21 @@
       background: #111;
       color: white;
       text-align: center;
-      margin-top: 40px;
+      margin: 0;
+      padding: 20px;
     }
 
-    .card {
-      background: #222;
-      margin: 20px auto;
-      padding: 30px;
-      border-radius: 20px;
-      width: 320px;
-      font-size: 2em;
+    h1 {
+      margin-bottom: 10px;
     }
 
     .status {
       background: #222;
-      margin: 20px auto;
-      padding: 20px;
-      border-radius: 20px;
-      width: 320px;
+      margin: 10px auto 25px auto;
+      padding: 15px;
+      border-radius: 16px;
+      max-width: 420px;
       font-size: 1.1em;
-      line-height: 1.8;
     }
 
     .online {
@@ -43,6 +39,39 @@
     .offline {
       color: #ff4444;
     }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #222;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.4);
+    }
+
+    .device {
+      font-size: 1.1em;
+      margin-bottom: 15px;
+      color: #cccccc;
+      word-break: break-word;
+    }
+
+    .value {
+      font-size: 2em;
+      margin: 12px 0;
+    }
+
+    .time {
+      font-size: 0.9em;
+      color: #aaaaaa;
+      margin-top: 12px;
+    }
   </style>
 </head>
 
@@ -50,22 +79,16 @@
 
   <h1>Wohnmobil Monitor</h1>
 
-  <div class="card">
-    🔋 <span id="voltage">--</span> V
-  </div>
-
-  <div class="card">
-    🌡 <span id="temperature">--</span> °C
-  </div>
-
   <div class="status">
     MQTT: <span id="mqttStatus" class="offline">getrennt</span><br>
-    ESP32: <span id="espStatus" class="offline">offline</span><br>
-    Letzte Daten: <span id="lastUpdate">--</span>
+    Geräte online: <span id="onlineCount">0</span>
   </div>
 
+  <div id="devices" class="grid"></div>
+
   <script>
-    let lastMessageTime = 0;
+    const devices = {};
+    const offlineAfterSeconds = 15;
 
     const client = mqtt.connect(
       'wss://a7da96d4c631420a8eae1de3e32c451d.s1.eu.hivemq.cloud:8884/mqtt',
@@ -81,7 +104,7 @@
       document.getElementById('mqttStatus').innerText = 'verbunden';
       document.getElementById('mqttStatus').className = 'online';
 
-      client.subscribe('wohnmobil/batterie1/data');
+      client.subscribe('wohnmobil/+/data');
     });
 
     client.on('close', () => {
@@ -96,37 +119,53 @@
     });
 
     client.on('message', (topic, message) => {
-      const data = JSON.parse(message.toString());
+      try {
+        const data = JSON.parse(message.toString());
+        const deviceId = data.device || topic.split('/')[1];
 
-      document.getElementById('voltage').innerText =
-        data.voltage.toFixed(2);
+        devices[deviceId] = {
+          voltage: Number(data.voltage),
+          temperature: Number(data.temperature),
+          lastSeen: Date.now()
+        };
 
-      document.getElementById('temperature').innerText =
-        data.temperature.toFixed(1);
-
-      lastMessageTime = Date.now();
-
-      const now = new Date();
-      document.getElementById('lastUpdate').innerText =
-        now.toLocaleTimeString('de-DE');
-
-      document.getElementById('espStatus').innerText = 'online';
-      document.getElementById('espStatus').className = 'online';
+        renderDevices();
+      } catch (e) {
+        console.log('JSON Fehler:', e);
+      }
     });
 
-    setInterval(() => {
-      if (lastMessageTime === 0) return;
+    function renderDevices() {
+      const container = document.getElementById('devices');
+      container.innerHTML = '';
 
-      const secondsSinceLastMessage = (Date.now() - lastMessageTime) / 1000;
+      let onlineCount = 0;
 
-      if (secondsSinceLastMessage > 15) {
-        document.getElementById('espStatus').innerText = 'offline';
-        document.getElementById('espStatus').className = 'offline';
-      } else {
-        document.getElementById('espStatus').innerText = 'online';
-        document.getElementById('espStatus').className = 'online';
-      }
-    }, 1000);
+      Object.keys(devices).sort().forEach(deviceId => {
+        const d = devices[deviceId];
+        const seconds = (Date.now() - d.lastSeen) / 1000;
+        const online = seconds <= offlineAfterSeconds;
+
+        if (online) onlineCount++;
+
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        card.innerHTML = `
+          <div class="device">${deviceId}</div>
+          <div class="value">🔋 ${d.voltage.toFixed(2)} V</div>
+          <div class="value">🌡 ${d.temperature.toFixed(1)} °C</div>
+          <div>Status: <span class="${online ? 'online' : 'offline'}">${online ? 'online' : 'offline'}</span></div>
+          <div class="time">Letzte Daten: ${new Date(d.lastSeen).toLocaleTimeString('de-DE')}</div>
+        `;
+
+        container.appendChild(card);
+      });
+
+      document.getElementById('onlineCount').innerText = onlineCount;
+    }
+
+    setInterval(renderDevices, 1000);
   </script>
 
 </body>
