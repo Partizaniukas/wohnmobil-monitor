@@ -39,11 +39,17 @@
       margin: 0 auto;
     }
 
+    .card {
+      position: relative;
+      min-height: 190px;
+    }
+
     .device {
       font-size: 1.2em;
       color: #ccc;
       word-break: break-word;
-      margin-bottom: 18px;
+      margin-bottom: 22px;
+      padding-right: 45px;
     }
 
     .value {
@@ -60,9 +66,10 @@
       margin-top: 12px;
     }
 
-    .wifi {
-      margin-top: 14px;
-      font-size: 1em;
+    .wifi-corner {
+      position: absolute;
+      top: 16px;
+      right: 16px;
     }
 
     .bars {
@@ -70,8 +77,6 @@
       align-items: flex-end;
       gap: 3px;
       height: 22px;
-      margin-left: 8px;
-      margin-right: 8px;
     }
 
     .bar {
@@ -164,13 +169,10 @@
       }
 
       let html = '<span class="bars">';
-
       for (let i = 1; i <= 4; i++) {
         html += `<span class="bar ${i <= bars ? 'active ' + quality : ''}"></span>`;
       }
-
       html += '</span>';
-
       return html;
     }
 
@@ -191,6 +193,10 @@
         card.className = 'card';
 
         card.innerHTML = `
+          <div class="wifi-corner">
+            ${wifiBars(d.wifi_rssi)}
+          </div>
+
           <div class="device">${deviceId}</div>
 
           <div class="value">
@@ -199,10 +205,6 @@
 
           <div class="value">
             🌡️ Temperatur: ${d.temperature.toFixed(1)} °C
-          </div>
-
-          <div class="wifi">
-            WLAN ${wifiBars(d.wifi_rssi)} ${d.wifi_rssi} dBm
           </div>
 
           <div>
