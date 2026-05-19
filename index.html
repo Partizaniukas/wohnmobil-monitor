@@ -19,13 +19,14 @@
       padding: 20px;
     }
 
-    .status, .card {
-      background: #222;
-      border-radius: 20px;
-      padding: 20px;
+    h1 {
+      margin-bottom: 20px;
     }
 
     .status {
+      background: #222;
+      border-radius: 20px;
+      padding: 20px;
       max-width: 420px;
       margin: 10px auto 25px auto;
       font-size: 1.1em;
@@ -41,30 +42,55 @@
 
     .card {
       position: relative;
-      min-height: 190px;
+      background: #222;
+      border-radius: 20px;
+      padding: 22px;
+      min-height: 210px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.4);
     }
 
     .device {
       font-size: 1.2em;
-      color: #ccc;
+      color: #cccccc;
       word-break: break-word;
-      margin-bottom: 22px;
-      padding-right: 45px;
+      margin-bottom: 20px;
+      padding-left: 30px;
+      padding-right: 40px;
     }
 
     .value {
-      font-size: 1.7em;
-      margin: 14px 0;
+      font-size: 1.6em;
+      margin: 16px 0;
     }
 
-    .online { color: #00ff88; }
-    .offline { color: #ff4444; }
+    .online {
+      color: #00ff88;
+    }
+
+    .offline {
+      color: #ff4444;
+    }
 
     .time {
       font-size: 0.9em;
-      color: #aaa;
-      margin-top: 12px;
+      color: #aaaaaa;
+      margin-top: 14px;
     }
+
+    /* =========================
+       STATUS GLOBUS LINKS OBEN
+       ========================= */
+
+    .status-corner {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      font-size: 1.2em;
+    }
+
+    /* =========================
+       WLAN RECHTS OBEN
+       ========================= */
 
     .wifi-corner {
       position: absolute;
@@ -90,9 +116,18 @@
     .bar:nth-child(3) { height: 14px; }
     .bar:nth-child(4) { height: 18px; }
 
-    .bar.active.good { background: #00ff88; }
-    .bar.active.medium { background: #ffaa00; }
-    .bar.active.bad { background: #ff4444; }
+    .bar.active.good {
+      background: #00ff88;
+    }
+
+    .bar.active.medium {
+      background: #ffaa00;
+    }
+
+    .bar.active.bad {
+      background: #ff4444;
+    }
+
   </style>
 </head>
 
@@ -101,15 +136,26 @@
   <h1>Wohnmobil Monitor</h1>
 
   <div class="status">
-    MQTT: <span id="mqttStatus" class="offline">getrennt</span><br>
-    Geräte online: <span id="onlineCount">0</span>
+    MQTT:
+    <span id="mqttStatus" class="offline">
+      getrennt
+    </span>
+    <br>
+
+    Geräte online:
+    <span id="onlineCount">0</span>
   </div>
 
   <div id="devices" class="grid"></div>
 
   <script>
+
     const devices = {};
     const offlineAfterSeconds = 15;
+
+    // =========================
+    // MQTT Verbindung
+    // =========================
 
     const client = mqtt.connect(
       'wss://a7da96d4c631420a8eae1de3e32c451d.s1.eu.hivemq.cloud:8884/mqtt',
@@ -122,20 +168,38 @@
     );
 
     client.on('connect', () => {
-      document.getElementById('mqttStatus').innerText = 'verbunden';
-      document.getElementById('mqttStatus').className = 'online';
+
+      document.getElementById('mqttStatus').innerText =
+        'verbunden';
+
+      document.getElementById('mqttStatus').className =
+        'online';
+
       client.subscribe('wohnmobil/+/data');
     });
 
     client.on('close', () => {
-      document.getElementById('mqttStatus').innerText = 'getrennt';
-      document.getElementById('mqttStatus').className = 'offline';
+
+      document.getElementById('mqttStatus').innerText =
+        'getrennt';
+
+      document.getElementById('mqttStatus').className =
+        'offline';
     });
 
+    // =========================
+    // MQTT Daten empfangen
+    // =========================
+
     client.on('message', (topic, message) => {
+
       try {
-        const data = JSON.parse(message.toString());
-        const deviceId = data.device || topic.split('/')[1];
+
+        const data =
+          JSON.parse(message.toString());
+
+        const deviceId =
+          data.device || topic.split('/')[1];
 
         devices[deviceId] = {
           voltage: Number(data.voltage),
@@ -145,87 +209,154 @@
         };
 
         renderDevices();
+
       } catch (e) {
+
         console.log('JSON Fehler:', e);
       }
     });
 
+    // =========================
+    // WLAN Balken
+    // =========================
+
     function wifiBars(rssi) {
+
       let bars = 1;
       let quality = 'bad';
 
+      // Sehr gut
       if (rssi >= -65) {
         bars = 4;
         quality = 'good';
-      } else if (rssi >= -75) {
+      }
+
+      // Gut
+      else if (rssi >= -75) {
         bars = 3;
         quality = 'good';
-      } else if (rssi >= -85) {
+      }
+
+      // Okay
+      else if (rssi >= -85) {
         bars = 2;
         quality = 'medium';
-      } else {
+      }
+
+      // Schlecht
+      else {
         bars = 1;
         quality = 'bad';
       }
 
       let html = '<span class="bars">';
+
       for (let i = 1; i <= 4; i++) {
-        html += `<span class="bar ${i <= bars ? 'active ' + quality : ''}"></span>`;
+
+        html += `
+          <span class="bar
+            ${i <= bars ? 'active ' + quality : ''}
+          ">
+          </span>
+        `;
       }
+
       html += '</span>';
+
       return html;
     }
 
+    // =========================
+    // Geräte anzeigen
+    // =========================
+
     function renderDevices() {
-      const container = document.getElementById('devices');
+
+      const container =
+        document.getElementById('devices');
+
       container.innerHTML = '';
 
       let onlineCount = 0;
 
-      Object.keys(devices).sort().forEach(deviceId => {
+      Object.keys(devices)
+        .sort()
+        .forEach(deviceId => {
+
         const d = devices[deviceId];
-        const seconds = (Date.now() - d.lastSeen) / 1000;
-        const online = seconds <= offlineAfterSeconds;
 
-        if (online) onlineCount++;
+        const seconds =
+          (Date.now() - d.lastSeen) / 1000;
 
-        const card = document.createElement('div');
+        const online =
+          seconds <= offlineAfterSeconds;
+
+        if (online) {
+          onlineCount++;
+        }
+
+        const card =
+          document.createElement('div');
+
         card.className = 'card';
 
         card.innerHTML = `
+
+          <!-- STATUS LINKS OBEN -->
+
+          <div class="status-corner">
+            <span style="
+              color:${online ? '#00ff88' : '#ff4444'};
+            ">
+              🌐
+            </span>
+          </div>
+
+          <!-- WLAN RECHTS OBEN -->
+
           <div class="wifi-corner">
             ${wifiBars(d.wifi_rssi)}
           </div>
 
-          <div class="device">${deviceId}</div>
+          <!-- GERÄTENAME -->
+
+          <div class="device">
+            ${deviceId}
+          </div>
+
+          <!-- SPANNUNG -->
 
           <div class="value">
-            🔋 Spannung: ${d.voltage.toFixed(2)} V
+            🔋 Spannung:
+            ${d.voltage.toFixed(2)} V
           </div>
+
+          <!-- TEMPERATUR -->
 
           <div class="value">
-            🌡️ Temperatur: ${d.temperature.toFixed(1)} °C
+            🌡️ Temperatur:
+            ${d.temperature.toFixed(1)} °C
           </div>
 
-          <div>
-            Status:
-            <span class="${online ? 'online' : 'offline'}">
-              ${online ? 'online' : 'offline'}
-            </span>
-          </div>
+          <!-- ZEIT -->
 
           <div class="time">
-            Letzte Daten: ${new Date(d.lastSeen).toLocaleTimeString('de-DE')}
+            Letzte Daten:
+            ${new Date(d.lastSeen)
+              .toLocaleTimeString('de-DE')}
           </div>
+
         `;
 
         container.appendChild(card);
       });
 
-      document.getElementById('onlineCount').innerText = onlineCount;
+      document.getElementById('onlineCount').innerText =
+        onlineCount;
     }
 
     setInterval(renderDevices, 1000);
+
   </script>
 
 </body>
