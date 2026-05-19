@@ -33,22 +33,22 @@
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 18px;
       max-width: 1200px;
       margin: 0 auto;
     }
 
     .device {
-      font-size: 1.1em;
+      font-size: 1.2em;
       color: #ccc;
       word-break: break-word;
-      margin-bottom: 15px;
+      margin-bottom: 18px;
     }
 
     .value {
-      font-size: 2em;
-      margin: 12px 0;
+      font-size: 1.7em;
+      margin: 14px 0;
     }
 
     .online { color: #00ff88; }
@@ -61,7 +61,7 @@
     }
 
     .wifi {
-      margin-top: 12px;
+      margin-top: 14px;
       font-size: 1em;
     }
 
@@ -145,39 +145,30 @@
       }
     });
 
- function wifiBars(rssi) {
+    function wifiBars(rssi) {
+      let bars = 1;
+      let quality = 'bad';
 
-  let bars = 1;
-  let quality = 'bad';
-
-  // Sehr gut
-  if (rssi >= -60) {
-    bars = 4;
-    quality = 'good';
-  }
-
-  // Gut
-  else if (rssi >= -70) {
-    bars = 3;
-    quality = 'good';
-  }
-
-  // Okay
-  else if (rssi >= -80) {
-    bars = 2;
-    quality = 'medium';
-  }
-
-  // Schlecht
-  else {
-    bars = 1;
-    quality = 'bad';
-  }
+      if (rssi >= -65) {
+        bars = 4;
+        quality = 'good';
+      } else if (rssi >= -75) {
+        bars = 3;
+        quality = 'good';
+      } else if (rssi >= -85) {
+        bars = 2;
+        quality = 'medium';
+      } else {
+        bars = 1;
+        quality = 'bad';
+      }
 
       let html = '<span class="bars">';
+
       for (let i = 1; i <= 4; i++) {
         html += `<span class="bar ${i <= bars ? 'active ' + quality : ''}"></span>`;
       }
+
       html += '</span>';
 
       return html;
@@ -201,14 +192,21 @@
 
         card.innerHTML = `
           <div class="device">${deviceId}</div>
-          <div class="value">🔋 ${d.voltage.toFixed(2)} V</div>
-          <div class="value">🌡 ${d.temperature.toFixed(1)} °C</div>
+
+          <div class="value">
+            🔋 Spannung: ${d.voltage.toFixed(2)} V
+          </div>
+
+          <div class="value">
+            🌡️ Temperatur: ${d.temperature.toFixed(1)} °C
+          </div>
 
           <div class="wifi">
             WLAN ${wifiBars(d.wifi_rssi)} ${d.wifi_rssi} dBm
           </div>
 
-          <div>Status:
+          <div>
+            Status:
             <span class="${online ? 'online' : 'offline'}">
               ${online ? 'online' : 'offline'}
             </span>
