@@ -19,25 +19,16 @@
       padding: 20px;
     }
 
-    h1 {
-      margin-bottom: 10px;
+    .status, .card {
+      background: #222;
+      border-radius: 20px;
+      padding: 20px;
     }
 
     .status {
-      background: #222;
-      margin: 10px auto 25px auto;
-      padding: 15px;
-      border-radius: 16px;
       max-width: 420px;
+      margin: 10px auto 25px auto;
       font-size: 1.1em;
-    }
-
-    .online {
-      color: #00ff88;
-    }
-
-    .offline {
-      color: #ff4444;
     }
 
     .grid {
@@ -48,18 +39,11 @@
       margin: 0 auto;
     }
 
-    .card {
-      background: #222;
-      border-radius: 20px;
-      padding: 20px;
-      box-shadow: 0 0 12px rgba(0,0,0,0.4);
-    }
-
     .device {
       font-size: 1.1em;
-      margin-bottom: 15px;
-      color: #cccccc;
+      color: #ccc;
       word-break: break-word;
+      margin-bottom: 15px;
     }
 
     .value {
@@ -67,11 +51,43 @@
       margin: 12px 0;
     }
 
+    .online { color: #00ff88; }
+    .offline { color: #ff4444; }
+
     .time {
       font-size: 0.9em;
-      color: #aaaaaa;
+      color: #aaa;
       margin-top: 12px;
     }
+
+    .wifi {
+      margin-top: 12px;
+      font-size: 1em;
+    }
+
+    .bars {
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 22px;
+      margin-left: 8px;
+      margin-right: 8px;
+    }
+
+    .bar {
+      width: 6px;
+      background: #444;
+      border-radius: 3px;
+    }
+
+    .bar:nth-child(1) { height: 6px; }
+    .bar:nth-child(2) { height: 10px; }
+    .bar:nth-child(3) { height: 14px; }
+    .bar:nth-child(4) { height: 18px; }
+
+    .bar.active.good { background: #00ff88; }
+    .bar.active.medium { background: #ffaa00; }
+    .bar.active.bad { background: #ff4444; }
   </style>
 </head>
 
@@ -103,18 +119,11 @@
     client.on('connect', () => {
       document.getElementById('mqttStatus').innerText = 'verbunden';
       document.getElementById('mqttStatus').className = 'online';
-
       client.subscribe('wohnmobil/+/data');
     });
 
     client.on('close', () => {
       document.getElementById('mqttStatus').innerText = 'getrennt';
-      document.getElementById('mqttStatus').className = 'offline';
-    });
-
-    client.on('error', (err) => {
-      console.log('MQTT Fehler:', err);
-      document.getElementById('mqttStatus').innerText = 'Fehler';
       document.getElementById('mqttStatus').className = 'offline';
     });
 
@@ -126,6 +135,7 @@
         devices[deviceId] = {
           voltage: Number(data.voltage),
           temperature: Number(data.temperature),
+          wifi_rssi: Number(data.wifi_rssi),
           lastSeen: Date.now()
         };
 
@@ -134,6 +144,33 @@
         console.log('JSON Fehler:', e);
       }
     });
+
+    function wifiBars(rssi) {
+      let bars = 1;
+      let quality = 'bad';
+
+      if (rssi >= -55) {
+        bars = 4;
+        quality = 'good';
+      } else if (rssi >= -65) {
+        bars = 3;
+        quality = 'good';
+      } else if (rssi >= -75) {
+        bars = 2;
+        quality = 'medium';
+      } else {
+        bars = 1;
+        quality = 'bad';
+      }
+
+      let html = '<span class="bars">';
+      for (let i = 1; i <= 4; i++) {
+        html += `<span class="bar ${i <= bars ? 'active ' + quality : ''}"></span>`;
+      }
+      html += '</span>';
+
+      return html;
+    }
 
     function renderDevices() {
       const container = document.getElementById('devices');
@@ -155,8 +192,20 @@
           <div class="device">${deviceId}</div>
           <div class="value">🔋 ${d.voltage.toFixed(2)} V</div>
           <div class="value">🌡 ${d.temperature.toFixed(1)} °C</div>
-          <div>Status: <span class="${online ? 'online' : 'offline'}">${online ? 'online' : 'offline'}</span></div>
-          <div class="time">Letzte Daten: ${new Date(d.lastSeen).toLocaleTimeString('de-DE')}</div>
+
+          <div class="wifi">
+            WLAN ${wifiBars(d.wifi_rssi)} ${d.wifi_rssi} dBm
+          </div>
+
+          <div>Status:
+            <span class="${online ? 'online' : 'offline'}">
+              ${online ? 'online' : 'offline'}
+            </span>
+          </div>
+
+          <div class="time">
+            Letzte Daten: ${new Date(d.lastSeen).toLocaleTimeString('de-DE')}
+          </div>
         `;
 
         container.appendChild(card);
