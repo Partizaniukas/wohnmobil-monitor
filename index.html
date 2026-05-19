@@ -145,23 +145,34 @@
       }
     });
 
-    function wifiBars(rssi) {
-      let bars = 1;
-      let quality = 'bad';
+ function wifiBars(rssi) {
 
-      if (rssi >= -55) {
-        bars = 4;
-        quality = 'good';
-      } else if (rssi >= -65) {
-        bars = 3;
-        quality = 'good';
-      } else if (rssi >= -75) {
-        bars = 2;
-        quality = 'medium';
-      } else {
-        bars = 1;
-        quality = 'bad';
-      }
+  let bars = 1;
+  let quality = 'bad';
+
+  // Sehr gut
+  if (rssi >= -60) {
+    bars = 4;
+    quality = 'good';
+  }
+
+  // Gut
+  else if (rssi >= -70) {
+    bars = 3;
+    quality = 'good';
+  }
+
+  // Okay
+  else if (rssi >= -80) {
+    bars = 2;
+    quality = 'medium';
+  }
+
+  // Schlecht
+  else {
+    bars = 1;
+    quality = 'bad';
+  }
 
       let html = '<span class="bars">';
       for (let i = 1; i <= 4; i++) {
