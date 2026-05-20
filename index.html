@@ -19,9 +19,7 @@
       padding: 20px;
     }
 
-    h1 {
-      margin-bottom: 20px;
-    }
+    h1 { margin-bottom: 20px; }
 
     .status {
       background: #222;
@@ -45,7 +43,7 @@
       background: #222;
       border-radius: 20px;
       padding: 22px;
-      min-height: 210px;
+      min-height: 240px;
       box-shadow: 0 0 12px rgba(0,0,0,0.4);
     }
 
@@ -63,13 +61,8 @@
       margin: 16px 0;
     }
 
-    .online {
-      color: #00ff88;
-    }
-
-    .offline {
-      color: #ff4444;
-    }
+    .online { color: #00ff88; }
+    .offline { color: #ff4444; }
 
     .time {
       font-size: 0.9em;
@@ -77,20 +70,12 @@
       margin-top: 14px;
     }
 
-    /* =========================
-       STATUS GLOBUS LINKS OBEN
-       ========================= */
-
     .status-corner {
       position: absolute;
       top: 16px;
       left: 16px;
       font-size: 1.2em;
     }
-
-    /* =========================
-       WLAN RECHTS OBEN
-       ========================= */
 
     .wifi-corner {
       position: absolute;
@@ -116,18 +101,24 @@
     .bar:nth-child(3) { height: 14px; }
     .bar:nth-child(4) { height: 18px; }
 
-    .bar.active.good {
-      background: #00ff88;
-    }
+    .bar.active.good { background: #00ff88; }
+    .bar.active.medium { background: #ffaa00; }
+    .bar.active.bad { background: #ff4444; }
 
-    .bar.active.medium {
-      background: #ffaa00;
-    }
-
-    .bar.active.bad {
+    .reset-btn {
+      margin-top: 14px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 12px;
       background: #ff4444;
+      color: white;
+      font-size: 0.95em;
+      cursor: pointer;
     }
 
+    .reset-btn:hover {
+      background: #ff6666;
+    }
   </style>
 </head>
 
@@ -136,26 +127,15 @@
   <h1>Wohnmobil Monitor</h1>
 
   <div class="status">
-    MQTT:
-    <span id="mqttStatus" class="offline">
-      getrennt
-    </span>
-    <br>
-
-    Geräte online:
-    <span id="onlineCount">0</span>
+    MQTT: <span id="mqttStatus" class="offline">getrennt</span><br>
+    Geräte online: <span id="onlineCount">0</span>
   </div>
 
   <div id="devices" class="grid"></div>
 
   <script>
-
     const devices = {};
     const offlineAfterSeconds = 15;
-
-    // =========================
-    // MQTT Verbindung
-    // =========================
 
     const client = mqtt.connect(
       'wss://a7da96d4c631420a8eae1de3e32c451d.s1.eu.hivemq.cloud:8884/mqtt',
@@ -168,38 +148,20 @@
     );
 
     client.on('connect', () => {
-
-      document.getElementById('mqttStatus').innerText =
-        'verbunden';
-
-      document.getElementById('mqttStatus').className =
-        'online';
-
+      document.getElementById('mqttStatus').innerText = 'verbunden';
+      document.getElementById('mqttStatus').className = 'online';
       client.subscribe('wohnmobil/+/data');
     });
 
     client.on('close', () => {
-
-      document.getElementById('mqttStatus').innerText =
-        'getrennt';
-
-      document.getElementById('mqttStatus').className =
-        'offline';
+      document.getElementById('mqttStatus').innerText = 'getrennt';
+      document.getElementById('mqttStatus').className = 'offline';
     });
 
-    // =========================
-    // MQTT Daten empfangen
-    // =========================
-
     client.on('message', (topic, message) => {
-
       try {
-
-        const data =
-          JSON.parse(message.toString());
-
-        const deviceId =
-          data.device || topic.split('/')[1];
+        const data = JSON.parse(message.toString());
+        const deviceId = data.device || topic.split('/')[1];
 
         devices[deviceId] = {
           voltage: Number(data.voltage),
@@ -209,154 +171,106 @@
         };
 
         renderDevices();
-
       } catch (e) {
-
         console.log('JSON Fehler:', e);
       }
     });
 
-    // =========================
-    // WLAN Balken
-    // =========================
-
     function wifiBars(rssi) {
-
       let bars = 1;
       let quality = 'bad';
 
-      // Sehr gut
       if (rssi >= -65) {
         bars = 4;
         quality = 'good';
-      }
-
-      // Gut
-      else if (rssi >= -75) {
+      } else if (rssi >= -75) {
         bars = 3;
         quality = 'good';
-      }
-
-      // Okay
-      else if (rssi >= -85) {
+      } else if (rssi >= -85) {
         bars = 2;
         quality = 'medium';
-      }
-
-      // Schlecht
-      else {
+      } else {
         bars = 1;
         quality = 'bad';
       }
 
       let html = '<span class="bars">';
-
       for (let i = 1; i <= 4; i++) {
-
-        html += `
-          <span class="bar
-            ${i <= bars ? 'active ' + quality : ''}
-          ">
-          </span>
-        `;
+        html += `<span class="bar ${i <= bars ? 'active ' + quality : ''}"></span>`;
       }
-
       html += '</span>';
 
       return html;
     }
 
-    // =========================
-    // Geräte anzeigen
-    // =========================
+    function resetWifi(deviceId) {
+      const sicher = confirm(
+        "WLAN und Fahrzeugname von " + deviceId + " wirklich zurücksetzen?"
+      );
+
+      if (!sicher) return;
+
+      const topic = "wohnmobil/" + deviceId + "/cmd";
+      const payload = JSON.stringify({
+        command: "reset_wifi"
+      });
+
+      client.publish(topic, payload);
+
+      alert("Reset-Befehl gesendet an " + deviceId);
+    }
 
     function renderDevices() {
-
-      const container =
-        document.getElementById('devices');
-
+      const container = document.getElementById('devices');
       container.innerHTML = '';
 
       let onlineCount = 0;
 
-      Object.keys(devices)
-        .sort()
-        .forEach(deviceId => {
-
+      Object.keys(devices).sort().forEach(deviceId => {
         const d = devices[deviceId];
+        const seconds = (Date.now() - d.lastSeen) / 1000;
+        const online = seconds <= offlineAfterSeconds;
 
-        const seconds =
-          (Date.now() - d.lastSeen) / 1000;
+        if (online) onlineCount++;
 
-        const online =
-          seconds <= offlineAfterSeconds;
-
-        if (online) {
-          onlineCount++;
-        }
-
-        const card =
-          document.createElement('div');
-
+        const card = document.createElement('div');
         card.className = 'card';
 
         card.innerHTML = `
-
-          <!-- STATUS LINKS OBEN -->
-
           <div class="status-corner">
-            <span style="
-              color:${online ? '#00ff88' : '#ff4444'};
-            ">
-              🌐
-            </span>
+            <span style="color:${online ? '#00ff88' : '#ff4444'};">🌐</span>
           </div>
-
-          <!-- WLAN RECHTS OBEN -->
 
           <div class="wifi-corner">
             ${wifiBars(d.wifi_rssi)}
           </div>
 
-          <!-- GERÄTENAME -->
-
-          <div class="device">
-            ${deviceId}
-          </div>
-
-          <!-- SPANNUNG -->
+          <div class="device">${deviceId}</div>
 
           <div class="value">
-            🔋 Spannung:
-            ${d.voltage.toFixed(2)} V
+            🔋 Spannung: ${d.voltage.toFixed(2)} V
           </div>
-
-          <!-- TEMPERATUR -->
 
           <div class="value">
-            🌡️ Temperatur:
-            ${d.temperature.toFixed(1)} °C
+            🌡️ Temperatur: ${d.temperature.toFixed(1)} °C
           </div>
-
-          <!-- ZEIT -->
 
           <div class="time">
-            Letzte Daten:
-            ${new Date(d.lastSeen)
-              .toLocaleTimeString('de-DE')}
+            Letzte Daten: ${new Date(d.lastSeen).toLocaleTimeString('de-DE')}
           </div>
 
+          <button class="reset-btn" onclick="resetWifi('${deviceId}')">
+            WLAN Reset
+          </button>
         `;
 
         container.appendChild(card);
       });
 
-      document.getElementById('onlineCount').innerText =
-        onlineCount;
+      document.getElementById('onlineCount').innerText = onlineCount;
     }
 
     setInterval(renderDevices, 1000);
-
   </script>
 
 </body>
