@@ -10,7 +10,6 @@
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
   <style>
-
     body {
       font-family: Arial;
       background: #111;
@@ -35,8 +34,7 @@
 
     .grid {
       display: grid;
-      grid-template-columns:
-        repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 18px;
       max-width: 1200px;
       margin: 0 auto;
@@ -48,8 +46,7 @@
       border-radius: 20px;
       padding: 22px;
       min-height: 250px;
-      box-shadow:
-        0 0 12px rgba(0,0,0,0.4);
+      box-shadow: 0 0 12px rgba(0,0,0,0.4);
     }
 
     .device {
@@ -66,13 +63,8 @@
       margin: 16px 0;
     }
 
-    .online {
-      color: #00ff88;
-    }
-
-    .offline {
-      color: #ff4444;
-    }
+    .online { color: #00ff88; }
+    .offline { color: #ff4444; }
 
     .time {
       font-size: 0.9em;
@@ -80,20 +72,12 @@
       margin-top: 14px;
     }
 
-    /* =========================
-       STATUS LINKS OBEN
-       ========================= */
-
     .status-corner {
       position: absolute;
       top: 16px;
       left: 16px;
       font-size: 1.2em;
     }
-
-    /* =========================
-       WLAN RECHTS OBEN
-       ========================= */
 
     .wifi-corner {
       position: absolute;
@@ -119,43 +103,26 @@
     .bar:nth-child(3) { height: 14px; }
     .bar:nth-child(4) { height: 18px; }
 
-    .bar.active.good {
-      background: #00ff88;
-    }
-
-    .bar.active.medium {
-      background: #ffaa00;
-    }
-
-    .bar.active.bad {
-      background: #ff4444;
-    }
-
-    /* =========================
-       WLAN RESET BUTTON
-       ========================= */
+    .bar.active.good { background: #00ff88; }
+    .bar.active.medium { background: #ffaa00; }
+    .bar.active.bad { background: #ff4444; }
 
     .reset-btn {
       margin-top: 18px;
       padding: 11px 18px;
       border: none;
       border-radius: 14px;
-
       background: #3f5366;
       color: #dbe7f3;
-
       font-size: 0.95em;
       font-weight: bold;
-
       cursor: pointer;
-
       transition: 0.2s;
     }
 
     .reset-btn:hover {
       background: #587089;
     }
-
   </style>
 </head>
 
@@ -164,27 +131,15 @@
   <h1>Wohnmobil Monitor</h1>
 
   <div class="status">
-    MQTT:
-    <span id="mqttStatus" class="offline">
-      getrennt
-    </span>
-
-    <br>
-
-    Geräte online:
-    <span id="onlineCount">0</span>
+    MQTT: <span id="mqttStatus" class="offline">getrennt</span><br>
+    Geräte online: <span id="onlineCount">0</span>
   </div>
 
   <div id="devices" class="grid"></div>
 
   <script>
-
     const devices = {};
     const offlineAfterSeconds = 15;
-
-    // =========================
-    // MQTT Verbindung
-    // =========================
 
     const client = mqtt.connect(
       'wss://a7da96d4c631420a8eae1de3e32c451d.s1.eu.hivemq.cloud:8884/mqtt',
@@ -197,287 +152,146 @@
     );
 
     client.on('connect', () => {
-
-      document.getElementById(
-        'mqttStatus'
-      ).innerText = 'verbunden';
-
-      document.getElementById(
-        'mqttStatus'
-      ).className = 'online';
-
-      client.subscribe(
-        'wohnmobil/+/data'
-      );
+      document.getElementById('mqttStatus').innerText = 'verbunden';
+      document.getElementById('mqttStatus').className = 'online';
+      client.subscribe('wohnmobil/+/data');
     });
 
     client.on('close', () => {
-
-      document.getElementById(
-        'mqttStatus'
-      ).innerText = 'getrennt';
-
-      document.getElementById(
-        'mqttStatus'
-      ).className = 'offline';
+      document.getElementById('mqttStatus').innerText = 'getrennt';
+      document.getElementById('mqttStatus').className = 'offline';
     });
 
-    // =========================
-    // MQTT DATEN EMPFANGEN
-    // =========================
-
-    client.on('message',
-      (topic, message) => {
-
+    client.on('message', (topic, message) => {
       try {
-
-        const data =
-          JSON.parse(message.toString());
-
-        const deviceId =
-          data.device ||
-          topic.split('/')[1];
+        const data = JSON.parse(message.toString());
+        const deviceId = data.device || topic.split('/')[1];
 
         devices[deviceId] = {
-
-          voltage:
-            Number(data.voltage),
-
-          temperature:
-            Number(data.temperature),
-
-          wifi_rssi:
-            Number(data.wifi_rssi),
-
-          lastSeen:
-            Date.now()
+          voltage: Number(data.voltage),
+          temperature: Number(data.temperature),
+          wifi_rssi: Number(data.wifi_rssi),
+          lastSeen: Date.now()
         };
 
         renderDevices();
-
       } catch (e) {
-
-        console.log(
-          'JSON Fehler:',
-          e
-        );
+        console.log('JSON Fehler:', e);
       }
     });
 
-    // =========================
-    // WLAN BALKEN
-    // =========================
+    function voltageColor(voltage) {
+      if (voltage < 11.5) return '#ff4444';
+      if (voltage < 12.1) return '#ffaa00';
+      return '#ffffff';
+    }
+
+    function temperatureColor(temperature) {
+      if (temperature > 60) return '#ff4444';
+      if (temperature > 50) return '#ffaa00';
+      if (temperature < 1) return '#ff4444';
+      if (temperature < 3) return '#ffaa00';
+      return '#ffffff';
+    }
 
     function wifiBars(rssi) {
-
       let bars = 1;
       let quality = 'bad';
 
       if (rssi >= -65) {
-
         bars = 4;
         quality = 'good';
-
       } else if (rssi >= -75) {
-
         bars = 3;
         quality = 'good';
-
       } else if (rssi >= -85) {
-
         bars = 2;
         quality = 'medium';
-
       } else {
-
         bars = 1;
         quality = 'bad';
       }
 
-      let html =
-        '<span class="bars">';
-
+      let html = '<span class="bars">';
       for (let i = 1; i <= 4; i++) {
-
-        html += `
-          <span class="bar
-            ${i <= bars
-              ? 'active ' + quality
-              : ''}
-          ">
-          </span>
-        `;
+        html += `<span class="bar ${i <= bars ? 'active ' + quality : ''}"></span>`;
       }
-
       html += '</span>';
 
       return html;
     }
 
-    // =========================
-    // WLAN RESET
-    // =========================
-
     function resetWifi(deviceId) {
-
       const sicher = confirm(
-        'WLAN und Fahrzeugname von ' +
-        deviceId +
-        ' wirklich zurücksetzen?'
+        'WLAN und Fahrzeugname von ' + deviceId + ' wirklich zurücksetzen?'
       );
 
-      if (!sicher) {
-        return;
-      }
+      if (!sicher) return;
 
-      const topic =
-        'wohnmobil/' +
-        deviceId +
-        '/cmd';
+      const topic = 'wohnmobil/' + deviceId + '/cmd';
 
-      const payload =
-        JSON.stringify({
-          command: 'reset_wifi'
-        });
+      const payload = JSON.stringify({
+        command: 'reset_wifi'
+      });
 
-      client.publish(
-        topic,
-        payload
-      );
+      client.publish(topic, payload);
 
-      alert(
-        'Reset-Befehl gesendet an ' +
-        deviceId
-      );
+      alert('Reset-Befehl gesendet an ' + deviceId);
     }
 
-    // =========================
-    // GERÄTE ANZEIGEN
-    // =========================
-
     function renderDevices() {
-
-      const container =
-        document.getElementById(
-          'devices'
-        );
-
+      const container = document.getElementById('devices');
       container.innerHTML = '';
 
       let onlineCount = 0;
 
-      Object.keys(devices)
-        .sort()
-        .forEach(deviceId => {
+      Object.keys(devices).sort().forEach(deviceId => {
+        const d = devices[deviceId];
+        const seconds = (Date.now() - d.lastSeen) / 1000;
+        const online = seconds <= offlineAfterSeconds;
 
-        const d =
-          devices[deviceId];
+        if (online) onlineCount++;
 
-        const seconds =
-          (Date.now() -
-          d.lastSeen) / 1000;
-
-        const online =
-          seconds <=
-          offlineAfterSeconds;
-
-        if (online) {
-          onlineCount++;
-        }
-
-        const card =
-          document.createElement(
-            'div'
-          );
-
+        const card = document.createElement('div');
         card.className = 'card';
 
         card.innerHTML = `
-
-          <!-- STATUS -->
-
           <div class="status-corner">
-
-            <span style="
-              color:
-              ${online
-                ? '#00ff88'
-                : '#ff4444'};
-            ">
-              🌐
-            </span>
-
+            <span style="color:${online ? '#00ff88' : '#ff4444'};">🌐</span>
           </div>
-
-          <!-- WLAN -->
 
           <div class="wifi-corner">
-
             ${wifiBars(d.wifi_rssi)}
-
           </div>
-
-          <!-- NAME -->
 
           <div class="device">
-
             ${deviceId}
-
           </div>
 
-          <!-- SPANNUNG -->
-
-          <div class="value">
-
-            🔋 Spannung:
-            ${d.voltage.toFixed(2)} V
-
+          <div class="value" style="color:${voltageColor(d.voltage)};">
+            🔋 Spannung: ${d.voltage.toFixed(2)} V
           </div>
 
-          <!-- TEMPERATUR -->
-
-          <div class="value">
-
-            🌡️ Temperatur:
-            ${d.temperature.toFixed(1)} °C
-
+          <div class="value" style="color:${temperatureColor(d.temperature)};">
+            🌡️ Temperatur: ${d.temperature.toFixed(1)} °C
           </div>
-
-          <!-- ZEIT -->
 
           <div class="time">
-
-            Letzte Daten:
-
-            ${new Date(d.lastSeen)
-              .toLocaleTimeString('de-DE')}
-
+            Letzte Daten: ${new Date(d.lastSeen).toLocaleTimeString('de-DE')}
           </div>
 
-          <!-- RESET BUTTON -->
-
-          <button
-            class="reset-btn"
-            onclick="resetWifi('${deviceId}')"
-          >
+          <button class="reset-btn" onclick="resetWifi('${deviceId}')">
             WLAN Reset
           </button>
-
         `;
 
         container.appendChild(card);
       });
 
-      document.getElementById(
-        'onlineCount'
-      ).innerText = onlineCount;
+      document.getElementById('onlineCount').innerText = onlineCount;
     }
 
-    setInterval(
-      renderDevices,
-      1000
-    );
-
+    setInterval(renderDevices, 1000);
   </script>
 
 </body>
